@@ -1,7 +1,7 @@
 # crossbuild
 :earth_africa: multiarch cross compiling environments
 
-[![actions](https://github.com/multiarch/crossbuild/actions/workflows/actions.yml/badge.svg)](https://github.com/multiarch/crossbuild/actions/workflows/actions.yml)
+[![actions](https://github.com/startergo/crossbuild/actions/workflows/actions.yml/badge.svg)](https://github.com/startergo/crossbuild/actions/workflows/actions.yml)
 
 ![](https://raw.githubusercontent.com/multiarch/dockerfile/master/logo.jpg)
 
@@ -29,7 +29,7 @@ i686-w64-mingw32       | win32                               |       |     |   X
 #### x86_64
 
 ```console
-$ docker run --rm -v $(pwd):/workdir multiarch/crossbuild make helloworld
+$ docker run --rm -v $(pwd):/workdir startergo/crossbuild make helloworld
 cc helloworld.c -o helloworld
 $ file helloworld
 helloworld: ELF 64-bit LSB  executable, x86-64, version 1 (SYSV), dynamically linked (uses shared libs), for GNU/Linux 2.6.32, BuildID[sha1]=9cfb3d5b46cba98c5aa99db67398afbebb270cb9, not stripped
@@ -126,7 +126,7 @@ helloworld: PE32+ executable (console) x86-64, for MS Windows
 ## Using crossbuild in a Dockerfile
 
 ```Dockerfile
-FROM multiarch/crossbuild
+FROM startergo/crossbuild
 RUN git clone https://github.com/bit-spark/objective-c-hello-world
 ENV CROSS_TRIPLE=x86_64-apple-darwin
 WORKDIR /workdir/objective-c-hello-world
