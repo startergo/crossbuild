@@ -10,19 +10,20 @@ You can use this image to produce binaries for multiple architectures.
 
 ## Supported targets
 
-Triple                 | Aliases                             | linux | osx | windows
------------------------|-------------------------------------|-------|-----|--------
-x86_64-linux-gnu       | **(default)**, linux, amd64, x86_64 |   X   |     |
-arm-linux-gnueabi      | arm, armv5                          |   X   |     |
-arm-linux-gnueabihf    | armhf, armv7, armv7l                |   X   |     |
-aarch64-linux-gnu      | arm64, aarch64                      |   X   |     |
-mipsel-linux-gnu       | mips, mipsel                        |   X   |     |
-powerpc64le-linux-gnu  | powerpc, powerpc64, powerpc64le     |   X   |     |
-x86_64-apple-darwin    | osx, osx64, darwin, darwin64        |       |  X  |
-x86_64h-apple-darwin   | osx64h, darwin64h, x86_64h          |       |  X  |
-i386-apple-darwin      | osx32, darwin32                     |       |  X  |
-x86_64-w64-mingw32     | windows, win64                      |       |     |   X
-i686-w64-mingw32       | win32                               |       |     |   X
+Triple                 | Aliases                               | linux | osx | windows
+-----------------------|---------------------------------------|-------|-----|--------
+x86_64-linux-gnu       | **(default)**, linux, amd64, x86_64   |   X   |     |
+arm-linux-gnueabi      | arm, armv5                            |   X   |     |
+arm-linux-gnueabihf    | armhf, armv7, armv7l                  |   X   |     |
+aarch64-linux-gnu      | arm64, aarch64                        |   X   |     |
+mipsel-linux-gnu       | mips, mipsel                          |   X   |     |
+powerpc64le-linux-gnu  | powerpc, powerpc64, powerpc64le       |   X   |     |
+x86_64-apple-darwin    | osx, osx64, darwin, darwin64          |       |  X  |
+x86_64h-apple-darwin   | osx64h, darwin64h, x86_64h            |       |  X  |
+i386-apple-darwin      | osx32, darwin32                       |       |  X  |
+aarch64-apple-darwin   | arm64-apple-darwin, osx-arm64, darwin-arm64 |   |  X  |
+x86_64-w64-mingw32     | windows, win64                        |       |     |   X
+i686-w64-mingw32       | win32                                 |       |     |   X
 
 ## Building the Image
 
@@ -139,6 +140,15 @@ $ file helloworld
 helloworld: Mach-O 64-bit executable x86_64
 ```
 
+#### darwin arm64 (Apple Silicon)
+
+```console
+$ docker run -it --rm -v $(pwd):/workdir -e CROSS_TRIPLE=aarch64-apple-darwin23 startergo/crossbuild make helloworld
+cc     helloworld.c   -o helloworld
+$ file helloworld
+helloworld: Mach-O 64-bit executable arm64
+```
+
 #### windows i386
 
 ```console
@@ -162,11 +172,19 @@ helloworld: PE32+ executable (console) x86-64, for MS Windows
 This image now uses macOS SDK 14.5 by default, with corresponding Darwin version 23.5. When using the macOS cross-compiler, you should use:
 
 ```console
-# For x86_64
+# For x86_64 (Intel Macs)
 $ docker run --rm -v $(pwd):/workdir -e CROSS_TRIPLE=x86_64-apple-darwin23 startergo/crossbuild make helloworld
+
+# For ARM64/Apple Silicon Macs
+$ docker run --rm -v $(pwd):/workdir -e CROSS_TRIPLE=aarch64-apple-darwin23 startergo/crossbuild make helloworld
 
 # For i386 (if available in current SDK)
 $ docker run --rm -v $(pwd):/workdir -e CROSS_TRIPLE=i386-apple-darwin23 startergo/crossbuild make helloworld
+
+# These all resolve to aarch64-apple-darwin23
+$ docker run --rm -v $(pwd):/workdir -e CROSS_TRIPLE=arm64-apple-darwin23 startergo/crossbuild make helloworld
+$ docker run --rm -v $(pwd):/workdir -e CROSS_TRIPLE=osx-arm64 startergo/crossbuild make helloworld
+$ docker run --rm -v $(pwd):/workdir -e CROSS_TRIPLE=darwin-arm64 startergo/crossbuild make helloworld
 ```
 
 ## Using crossbuild in a Dockerfile
@@ -199,4 +217,3 @@ OSX/Darwin/Apple builds:
 ## License
 
 MIT
-````
