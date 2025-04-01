@@ -45,6 +45,36 @@ This image supports different macOS SDK versions through build arguments. The SD
 
 Available macOS SDK versions can be found at: https://github.com/joseluisq/macosx-sdks/blob/master/macosx_sdks.json
 
+If someone needs to package and use unsupported sdk:
+https://github.com/tpoechtrager/osxcross#packaging-the-sdk
+
+### Using a Custom SDK
+
+After packaging your own SDK, there are several ways to use it in your build. The recommended method is to create a custom Dockerfile:
+
+```dockerfile
+# filepath: Dockerfile.custom-sdk
+FROM buildpack-deps:bullseye-curl AS builder
+
+# Copy your SDK file into the container
+COPY MacOSX12.3.sdk.tar.xz /tmp/
+
+# Continue with the main Dockerfile content
+FROM scratch
+COPY --from=builder /tmp/MacOSX12.3.sdk.tar.xz /tmp/MacOSX12.3.sdk.tar.xz
+
+# Copy the entire content of your original Dockerfile here
+# but override these build args:
+ARG darwin_sdk_version=12.3
+ARG darwin_sdk_url=file:///tmp/MacOSX12.3.sdk.tar.xz
+ARG darwin_version=21
+```
+Then build with:
+
+```console
+$ docker build -f Dockerfile.custom-sdk -t startergo/crossbuild:custom-sdk .
+```
+
 ## Building the Image
 
 The Docker image can be built with different macOS SDK versions and other parameters by using build arguments:
