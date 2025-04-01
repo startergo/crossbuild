@@ -140,6 +140,7 @@ docker build \
 
 <details>
 <summary>Linux Targets</summary>
+
 #### x86_64
 
 ```console
@@ -249,6 +250,7 @@ helloworld: ELF 32-bit LSB executable, MIPS, MIPS-II version 1 (SYSV), dynamical
 
 <details>
 <summary>Darwin Targets</summary>
+
 #### darwin i386
 
 > **Note**: This example requires a container built using an SDK version 10.14 (Darwin 18) or earlier.
@@ -344,6 +346,7 @@ docker run --rm -v $(pwd):/workdir -e CROSS_TRIPLE=darwin-arm64 startergo/crossb
 
 <details>
 <summary>Windows Targets</summary>
+
 #### windows i386
 
 ```console
