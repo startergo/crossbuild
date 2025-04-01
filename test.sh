@@ -15,24 +15,44 @@ shift $((OPTIND-1))
 
 [ "$1" = "--" ] && shift
 
-# Set variables - update the Darwin triples to match your actual SDK version (23)
-LINUX_TRIPLES="arm-linux-gnueabihf arm-linux-gnueabi powerpc64le-linux-gnu aarch64-linux-gnu arm-linux-gnueabihf mipsel-linux-gnu"
-# Set variables - update the Darwin triples to match your actual SDK version including ARM64
-DARWIN_TRIPLES="x86_64-apple-darwin23 i386-apple-darwin23 x86_64h-apple-darwin23 aarch64-apple-darwin23"
-WINDOWS_TRIPLES="x86_64-w64-mingw32 i686-w64-mingw32"
-ALIAS_TRIPLES="arm armhf arm64 amd64 x86_64 mips mipsel powerpc powerpc64 powerpc64le osx darwin windows"
-DOCKER_TEST_ARGS="--rm -v $(pwd)/test:/test -w /test"
-
 # First find the actual Darwin version inside the container to use for subsequent tests
-DARWIN_VERSION=$(docker run ${DOCKER_TEST_ARGS} ${DOCKER_REPO} bash -c 'cat /usr/osxcross/darwin_version || echo 23.5')
+DARWIN_VERSION=$(docker run --rm ${DOCKER_REPO} bash -c 'cat /usr/osxcross/darwin_version || echo 23.5')
 echo "Detected Darwin version: ${DARWIN_VERSION}"
 DARWIN_MAJOR=$(echo $DARWIN_VERSION | cut -d. -f1)
 echo "Using Darwin major version: ${DARWIN_MAJOR}"
 
+# Check if i386 support should be enabled based on SDK version
+# i386 support was removed in macOS 10.15 (Darwin 19)
+if [ ${DARWIN_MAJOR} -ge 19 ]; then
+    echo "SDK version ${DARWIN_MAJOR} detected - i386 support not available (dropped in macOS 10.15/Darwin 19)"
+    HAS_I386=false
+    # Darwin triples without i386
+    DARWIN_TRIPLES="x86_64-apple-darwin${DARWIN_MAJOR} x86_64h-apple-darwin${DARWIN_MAJOR} aarch64-apple-darwin${DARWIN_MAJOR}"
+else
+    echo "SDK version ${DARWIN_MAJOR} detected - i386 support should be available"
+    HAS_I386=true
+    # Darwin triples with i386
+    DARWIN_TRIPLES="x86_64-apple-darwin${DARWIN_MAJOR} i386-apple-darwin${DARWIN_MAJOR} x86_64h-apple-darwin${DARWIN_MAJOR} aarch64-apple-darwin${DARWIN_MAJOR}"
+fi
+
+# Set variables for other architectures
+LINUX_TRIPLES="arm-linux-gnueabihf arm-linux-gnueabi powerpc64le-linux-gnu aarch64-linux-gnu arm-linux-gnueabihf mipsel-linux-gnu"
+WINDOWS_TRIPLES="x86_64-w64-mingw32 i686-w64-mingw32"
+ALIAS_TRIPLES="arm armhf arm64 amd64 x86_64 mips mipsel powerpc powerpc64 powerpc64le osx darwin windows"
+DOCKER_TEST_ARGS="--rm -v $(pwd)/test:/test -w /test"
+
 # Run basic tests for all triples
 for triple in ${DARWIN_TRIPLES} ${LINUX_TRIPLES} ${WINDOWS_TRIPLES} ${ALIAS_TRIPLES}; do
-    echo "Testing triple: $triple"
-    docker run ${DOCKER_TEST_ARGS} -e CROSS_TRIPLE=${triple} ${DOCKER_REPO} make test || echo "Test for $triple failed but continuing"
+    # For Windows triples, look for .exe files
+    if [[ $triple == *mingw32 ]]; then
+        echo "Testing Windows triple: $triple (looking for .exe)"
+        docker run ${DOCKER_TEST_ARGS} -e CROSS_TRIPLE=${triple} ${DOCKER_REPO} make test
+        file test/helloworld.exe || echo "No .exe output file found"
+    else
+        echo "Testing triple: $triple"
+        docker run ${DOCKER_TEST_ARGS} -e CROSS_TRIPLE=${triple} ${DOCKER_REPO} make test || echo "Test for $triple failed but continuing"
+        file test/helloworld || echo "No output file found"
+    fi
 done
 
 # Tests specific to macOS
