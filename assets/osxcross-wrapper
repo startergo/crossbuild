@@ -1,34 +1,57 @@
-#!/bin/sh
+#!/bin/bash
+set -e
 
-# Pass the command through to the matching binary in osxcross
+# This wrapper script helps redirect commands to the proper osxcross binary
+
 # Extract the command name (last part of $0)
 cmd=$(basename "$0")
+
+# If CROSS_TRIPLE is not set, try to extract it from the symlink name
+if [ -z "${CROSS_TRIPLE}" ]; then
+    # Look for a triple pattern in the symlink name
+    if [[ "$0" =~ ([^/]+)-apple-darwin[0-9]+ ]]; then
+        # Extract the architecture
+        arch_part="${BASH_REMATCH[1]}" 
+        # Figure out Darwin version from osxcross
+        darwin_ver=$(cat /usr/osxcross/darwin_version 2>/dev/null || echo "23.5")
+        darwin_major=$(echo "$darwin_ver" | cut -d. -f1)
+        # Construct the triple
+        CROSS_TRIPLE="${arch_part}-apple-darwin${darwin_major}"
+    fi
+fi
+
+# Still no CROSS_TRIPLE? Use a default
+if [ -z "${CROSS_TRIPLE}" ]; then
+    CROSS_TRIPLE="x86_64-apple-darwin23"
+fi
+
+# Debug information
+echo "osxcross-wrapper: cmd=$cmd, CROSS_TRIPLE=$CROSS_TRIPLE" >&2
 
 # If called directly (as cc or gcc), use clang
 if [ "$cmd" = "cc" ] || [ "$cmd" = "gcc" ]; then
     cmd="clang"
 fi
 
-# Find the correct binary in osxcross path
-# First, try with the exact triple + command
-EXACT_DARWIN_VER=$(cat /usr/osxcross/darwin_version || echo "23.5")
-TRIPLE_PREFIX=$(echo $CROSS_TRIPLE | sed -E 's/([^-]+)-(.*)/\1/')
-EXACT_BIN="/usr/osxcross/bin/${CROSS_TRIPLE}-${cmd}"
+# Extract the architecture from CROSS_TRIPLE
+arch_part=$(echo "$CROSS_TRIPLE" | cut -d- -f1)
 
-# If exact match doesn't exist, try with pattern matching
-if [ ! -f "$EXACT_BIN" ]; then
-    FOUND_BIN=$(find /usr/osxcross/bin -name "${TRIPLE_PREFIX}-apple-darwin*-${cmd}" | head -1)
-    if [ -n "$FOUND_BIN" ]; then
-        EXACT_BIN="$FOUND_BIN"
-    fi
-fi
+# Try different binary naming schemes
+for binary_name in \
+    "/usr/osxcross/bin/${CROSS_TRIPLE}-${cmd}" \
+    "/usr/osxcross/bin/${arch_part}-apple-darwin*-${cmd}"; do
+    
+    # Try to find matching binaries using glob expansion
+    for match in $binary_name; do
+        if [ -f "$match" ] && [ -x "$match" ]; then
+            echo "osxcross-wrapper: executing $match $@" >&2
+            exec "$match" "$@"
+        fi
+    done
+done
 
-# Execute the command if it exists
-if [ -f "$EXACT_BIN" ]; then
-    exec "$EXACT_BIN" "$@"
-else
-    echo "Error: Could not find binary for $TRIPLE_PREFIX-apple-darwin*-$cmd"
-    echo "Available binaries:"
-    ls -la /usr/osxcross/bin | grep "$cmd" || echo "None found"
-    exit 1
-fi
+# If we got here, we couldn't find the binary
+echo "Error: Could not find osxcross binary for ${CROSS_TRIPLE}-${cmd}" >&2
+echo "Available binaries in /usr/osxcross/bin:" >&2
+ls -la /usr/osxcross/bin | grep -E "(${arch_part}|${cmd})" >&2
+exit 1

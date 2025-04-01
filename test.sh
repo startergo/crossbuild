@@ -64,6 +64,10 @@ done
 # Tests specific to macOS - only test with architectures we know are supported
 echo "Testing macOS compiler with detected version ${DARWIN_VERSION}"
 
+echo "Creating a simple test program"
+echo "#include <stdio.h>" > test/helloworld.c
+echo "int main() { printf(\"Hello from macOS\\n\"); return 0; }" >> test/helloworld.c
+
 # Only test i386 if we know it's supported (SDK version < 19)
 if [ "$HAS_I386" = true ]; then
     echo "Testing i386 macOS compiler (should be available with SDK ${DARWIN_MAJOR})"
@@ -75,12 +79,14 @@ fi
 
 # Always test x86_64
 echo "Testing x86_64 macOS compiler"
-docker run ${DOCKER_TEST_ARGS} -e CROSS_TRIPLE=x86_64-apple-darwin${DARWIN_MAJOR} ${DOCKER_REPO} cc helloworld.c -o helloworld || \
-echo "x86_64 compilation failed"
-file test/helloworld || echo "No x86_64 output file found"
+docker run ${DOCKER_TEST_ARGS} -e CROSS_TRIPLE=x86_64-apple-darwin${DARWIN_MAJOR} ${DOCKER_REPO} bash -c "
+  ls -la /usr/osxcross/bin/*x86_64*clang*
+  cc helloworld.c -o helloworld || exit 1
+  file helloworld" || echo "x86_64 compilation failed"
 
 # Always test ARM64
 echo "Testing ARM64 macOS compiler"
-docker run ${DOCKER_TEST_ARGS} -e CROSS_TRIPLE=aarch64-apple-darwin${DARWIN_MAJOR} ${DOCKER_REPO} cc helloworld.c -o helloworld || \
-echo "ARM64 compilation failed"
-file test/helloworld || echo "No ARM64 output file found"
+docker run ${DOCKER_TEST_ARGS} -e CROSS_TRIPLE=aarch64-apple-darwin${DARWIN_MAJOR} ${DOCKER_REPO} bash -c "
+  ls -la /usr/osxcross/bin/*aarch64*clang* || ls -la /usr/osxcross/bin/*arm64*clang*
+  cc helloworld.c -o helloworld || exit 1
+  file helloworld" || echo "ARM64 compilation failed"

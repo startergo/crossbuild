@@ -1,67 +1,94 @@
-#!/bin/sh
+#!/bin/bash
+set -e
 
 # Get Darwin version if not set
 if [ -z "${DARWIN_VERSION}" ]; then
-    DARWIN_VERSION=$(cat /usr/osxcross/darwin_version 2>/dev/null | cut -d. -f1 || echo 23)
+    if [ -f /usr/osxcross/darwin_version ]; then
+        DARWIN_VERSION=$(cat /usr/osxcross/darwin_version | cut -d. -f1)
+    else
+        DARWIN_VERSION=23  # Default to Darwin 23
+    fi
 fi
+
+# Debug info
+echo "------------------------------------------------------------------------"
+echo "CROSS_TRIPLE: ${CROSS_TRIPLE}"
 
 # alternative names mapping
 case "${CROSS_TRIPLE}" in
     x86_64-linux-gnu|linux|x86_64|amd64)
-    CROSS_TRIPLE="x86_64-linux-gnu" ;;
+        CROSS_TRIPLE="x86_64-linux-gnu" ;;
     arm-linux-gnueabi|arm|armv5)
-    CROSS_TRIPLE="arm-linux-gnueabi" ;;
+        CROSS_TRIPLE="arm-linux-gnueabi" ;;
     arm-linux-gnueabihf|armhf|armv7|armv7l)
-    CROSS_TRIPLE="arm-linux-gnueabihf" ;;
+        CROSS_TRIPLE="arm-linux-gnueabihf" ;;
     aarch64-linux-gnu|arm64|aarch64)
-    CROSS_TRIPLE="aarch64-linux-gnu" ;;
+        CROSS_TRIPLE="aarch64-linux-gnu" ;;
     mipsel-linux-gnu|mips|mipsel)
-    CROSS_TRIPLE="mipsel-linux-gnu" ;;
+        CROSS_TRIPLE="mipsel-linux-gnu" ;;
     powerpc64le-linux-gnu|powerpc|powerpc64|powerpc64le)
-    CROSS_TRIPLE="powerpc64le-linux-gnu" ;;
-    x86_64-apple-darwin|osx|osx64|darwin|darwin64)
-    CROSS_TRIPLE="x86_64-apple-darwin${DARWIN_VERSION}" ;;
-    x86_64h-apple-darwin|osx64h|darwin64h|x86_64h)
-    CROSS_TRIPLE="x86_64h-apple-darwin${DARWIN_VERSION}" ;;
-    i386-apple-darwin|osx32|darwin32)
-    # Check if i386 is supported in this SDK
-    if [ "${DARWIN_VERSION}" -ge 19 ]; then
-        echo "i386-apple-darwin${DARWIN_VERSION} not supported - i386 was dropped in Darwin 19+" 
-        exit 1
-    fi
-    CROSS_TRIPLE="i386-apple-darwin${DARWIN_VERSION}" ;;
-    aarch64-apple-darwin|arm64-apple-darwin|osx-arm64|darwin-arm64)
-    CROSS_TRIPLE="aarch64-apple-darwin${DARWIN_VERSION}" ;;
-    *-apple-darwin)
-    CROSS_TRIPLE="${CROSS_TRIPLE}${DARWIN_VERSION}" ;;
+        CROSS_TRIPLE="powerpc64le-linux-gnu" ;;
+    x86_64-apple-darwin*|osx|osx64|darwin|darwin64)
+        # If it already has a version number, keep it
+        if [[ "${CROSS_TRIPLE}" =~ x86_64-apple-darwin[0-9]+ ]]; then
+            true  # Keep existing triple
+        else
+            CROSS_TRIPLE="x86_64-apple-darwin${DARWIN_VERSION}"
+        fi ;;
+    x86_64h-apple-darwin*|osx64h|darwin64h|x86_64h)
+        # If it already has a version number, keep it
+        if [[ "${CROSS_TRIPLE}" =~ x86_64h-apple-darwin[0-9]+ ]]; then
+            true  # Keep existing triple
+        else
+            CROSS_TRIPLE="x86_64h-apple-darwin${DARWIN_VERSION}"
+        fi ;;
+    i386-apple-darwin*|osx32|darwin32)
+        # Check if i386 is supported in this SDK
+        if [ "${DARWIN_VERSION}" -ge 19 ]; then
+            echo "i386-apple-darwin${DARWIN_VERSION} not supported - i386 was dropped in Darwin 19+" 
+            exit 1
+        fi
+        # If it already has a version number, keep it
+        if [[ "${CROSS_TRIPLE}" =~ i386-apple-darwin[0-9]+ ]]; then
+            true  # Keep existing triple
+        else
+            CROSS_TRIPLE="i386-apple-darwin${DARWIN_VERSION}"
+        fi ;;
+    aarch64-apple-darwin*|arm64-apple-darwin*|osx-arm64|darwin-arm64)
+        # If it already has a version number, keep it
+        if [[ "${CROSS_TRIPLE}" =~ (aarch64|arm64)-apple-darwin[0-9]+ ]]; then
+            true  # Keep existing triple
+        else
+            CROSS_TRIPLE="aarch64-apple-darwin${DARWIN_VERSION}"
+        fi ;;
+    *-apple-darwin*)
+        # Possibly has a version already
+        if [[ "$CROSS_TRIPLE" =~ -apple-darwin[0-9]+ ]]; then
+            true  # Keep existing triple
+        else
+            CROSS_TRIPLE="${CROSS_TRIPLE}${DARWIN_VERSION}" 
+        fi ;;
     x86_64-w64-mingw32|windows|win64)
-    CROSS_TRIPLE="x86_64-w64-mingw32" ;;
+        CROSS_TRIPLE="x86_64-w64-mingw32" ;;
     i686-w64-mingw32|win32)
-    CROSS_TRIPLE="i686-w64-mingw32" ;;
+        CROSS_TRIPLE="i686-w64-mingw32" ;;
     i386-linux-gnu|i386)
-    echo "i386-linux-gnu not yet implemented." && exit 1 ;;
+        echo "i386-linux-gnu not yet implemented." && exit 1 ;;
     *)
-    echo "${CROSS_TRIPLE} not yet implemented." && exit 1 ;;
+        # Don't exit with error, just warn
+        echo "Warning: ${CROSS_TRIPLE} not explicitly recognized, but will try to use it" ;;
 esac
 
-# store original PATH and LD_LIBRARY_PATH
-if [ -z ${PATH_ORIGIN+x} ]; then export PATH_ORIGIN=${PATH}; fi
-if [ -z ${LD_LIBRARY_PATH_ORIGIN+x} ]; then export LD_LIBRARY_PATH_ORIGIN=${LD_LIBRARY_PATH}; fi
-
-# configure environment
+# Set PATH to include the target directory
 if [ -n "${CROSS_TRIPLE}" ]; then
-    export CROSS_ROOT="/usr/${CROSS_TRIPLE}"
-    export PATH="${CROSS_ROOT}/bin:${PATH_ORIGIN}"
-    export LD_LIBRARY_PATH="/usr/x86_64-linux-gnu/${CROSS_TRIPLE}/lib:${LD_LIBRARY_PATH_ORIGIN}"
+    export PATH="/usr/${CROSS_TRIPLE}/bin:${PATH}"
 fi
 
-# try to exec direct binary instead on relying on the $PATH
-binary=$1
-shift
-if [ -n "${CROSS_TRIPLE}" -a -f "${CROSS_ROOT}/bin/$binary" ]; then
-    binary="${CROSS_ROOT}/bin/$binary"
+# If no arguments, print the target triple and exit
+if [ $# -eq 0 ]; then
+    echo "${CROSS_TRIPLE}"
+    exit 0
 fi
 
-# finally exec
-exec "${binary}" "$@"
-exit $?
+# Execute the command with the specified environment
+exec "$@"

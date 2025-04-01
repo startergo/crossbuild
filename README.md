@@ -149,6 +149,13 @@ $ file helloworld
 helloworld: Mach-O 64-bit executable arm64
 ```
 
+# These all resolve to aarch64-apple-darwin23
+```console
+$ docker run --rm -v $(pwd):/workdir -e CROSS_TRIPLE=arm64-apple-darwin23 startergo/crossbuild make helloworld
+$ docker run --rm -v $(pwd):/workdir -e CROSS_TRIPLE=osx-arm64 startergo/crossbuild make helloworld
+$ docker run --rm -v $(pwd):/workdir -e CROSS_TRIPLE=darwin-arm64 startergo/crossbuild make helloworld
+```
+
 #### windows i386
 
 ```console
@@ -169,7 +176,7 @@ helloworld: PE32+ executable (console) x86-64, for MS Windows
 
 # SDK Version Note
 
-This image now uses macOS SDK 14.5 by default, with corresponding Darwin version 23.5. When using the macOS cross-compiler, you should use:
+This image now uses macOS SDK 14.5 by default, with corresponding Darwin version 23.5. When using the macOS cross-compiler, use one of these approaches:
 
 ```console
 # For x86_64 (Intel Macs)
@@ -177,14 +184,6 @@ $ docker run --rm -v $(pwd):/workdir -e CROSS_TRIPLE=x86_64-apple-darwin23 start
 
 # For ARM64/Apple Silicon Macs
 $ docker run --rm -v $(pwd):/workdir -e CROSS_TRIPLE=aarch64-apple-darwin23 startergo/crossbuild make helloworld
-
-# For i386 (if available in current SDK)
-$ docker run --rm -v $(pwd):/workdir -e CROSS_TRIPLE=i386-apple-darwin23 startergo/crossbuild make helloworld
-
-# These all resolve to aarch64-apple-darwin23
-$ docker run --rm -v $(pwd):/workdir -e CROSS_TRIPLE=arm64-apple-darwin23 startergo/crossbuild make helloworld
-$ docker run --rm -v $(pwd):/workdir -e CROSS_TRIPLE=osx-arm64 startergo/crossbuild make helloworld
-$ docker run --rm -v $(pwd):/workdir -e CROSS_TRIPLE=darwin-arm64 startergo/crossbuild make helloworld
 ```
 
 ## Using crossbuild in a Dockerfile
