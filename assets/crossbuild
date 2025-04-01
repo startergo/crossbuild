@@ -1,5 +1,10 @@
 #!/bin/sh
 
+# Get Darwin version if not set
+if [ -z "${DARWIN_VERSION}" ]; then
+    DARWIN_VERSION=$(cat /usr/osxcross/darwin_version 2>/dev/null | cut -d. -f1 || echo 23)
+fi
+
 # alternative names mapping
 case "${CROSS_TRIPLE}" in
     x86_64-linux-gnu|linux|x86_64|amd64)
@@ -19,6 +24,11 @@ case "${CROSS_TRIPLE}" in
     x86_64h-apple-darwin|osx64h|darwin64h|x86_64h)
     CROSS_TRIPLE="x86_64h-apple-darwin${DARWIN_VERSION}" ;;
     i386-apple-darwin|osx32|darwin32)
+    # Check if i386 is supported in this SDK
+    if [ "${DARWIN_VERSION}" -ge 19 ]; then
+        echo "i386-apple-darwin${DARWIN_VERSION} not supported - i386 was dropped in Darwin 19+" 
+        exit 1
+    fi
     CROSS_TRIPLE="i386-apple-darwin${DARWIN_VERSION}" ;;
     aarch64-apple-darwin|arm64-apple-darwin|osx-arm64|darwin-arm64)
     CROSS_TRIPLE="aarch64-apple-darwin${DARWIN_VERSION}" ;;

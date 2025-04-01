@@ -1,16 +1,34 @@
-#!/bin/bash
+#!/bin/sh
 
-# set -x
+# Pass the command through to the matching binary in osxcross
+# Extract the command name (last part of $0)
+cmd=$(basename "$0")
 
-# check if we are a symlink
-if [ "$(readlink -f $0)" != "$0" ]; then
-    exec "$(readlink -f $0)" $@
-    exit $?
+# If called directly (as cc or gcc), use clang
+if [ "$cmd" = "cc" ] || [ "$cmd" = "gcc" ]; then
+    cmd="clang"
 fi
 
-# normal behavior -> proxy to osxcross binary
-triple=$(echo "$0" | cut -d/ -f3)
-binary=$(basename "$0")
-binary_path="/usr/osxcross/bin/$triple-$binary"
+# Find the correct binary in osxcross path
+# First, try with the exact triple + command
+EXACT_DARWIN_VER=$(cat /usr/osxcross/darwin_version || echo "23.5")
+TRIPLE_PREFIX=$(echo $CROSS_TRIPLE | sed -E 's/([^-]+)-(.*)/\1/')
+EXACT_BIN="/usr/osxcross/bin/${CROSS_TRIPLE}-${cmd}"
 
-exec "$binary_path" $@
+# If exact match doesn't exist, try with pattern matching
+if [ ! -f "$EXACT_BIN" ]; then
+    FOUND_BIN=$(find /usr/osxcross/bin -name "${TRIPLE_PREFIX}-apple-darwin*-${cmd}" | head -1)
+    if [ -n "$FOUND_BIN" ]; then
+        EXACT_BIN="$FOUND_BIN"
+    fi
+fi
+
+# Execute the command if it exists
+if [ -f "$EXACT_BIN" ]; then
+    exec "$EXACT_BIN" "$@"
+else
+    echo "Error: Could not find binary for $TRIPLE_PREFIX-apple-darwin*-$cmd"
+    echo "Available binaries:"
+    ls -la /usr/osxcross/bin | grep "$cmd" || echo "None found"
+    exit 1
+fi
