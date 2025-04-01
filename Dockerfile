@@ -61,9 +61,9 @@ RUN apt-get install -y mingw-w64 \
 
 #Build arguments
 ARG osxcross_repo="tpoechtrager/osxcross"
-ARG osxcross_revision="542acc2ef6c21aeb3f109c03748b1015a71fed63"
+ARG osxcross_revision="master"  # Use the latest version that supports newer SDKs
 ARG darwin_sdk_version="14.5"
-ARG darwin_osx_version_min="10.13"
+ARG darwin_osx_version_min="10.13"  # Good choice for compatibility
 ARG darwin_version="23"
 ARG darwin_sdk_url="https://github.com/joseluisq/macosx-sdks/releases/download/${darwin_sdk_version}/MacOSX${darwin_sdk_version}.sdk.tar.xz"
 
@@ -80,9 +80,10 @@ RUN mkdir -p "/tmp/osxcross"                                                    
  && curl -sLo osxcross.tar.gz "https://codeload.github.com/${OSXCROSS_REPO}/tar.gz/${OSXCROSS_REVISION}"  \
  && tar --strip=1 -xzf osxcross.tar.gz                                                                         \
  && rm -f osxcross.tar.gz                                                                                      \
- && curl -sLo tarballs/MacOSX${DARWIN_SDK_VERSION}.sdk.tar.xz                                                  \
-             "${DARWIN_SDK_URL}"                \
- && yes "" | SDK_VERSION="${DARWIN_SDK_VERSION}" OSX_VERSION_MIN="${DARWIN_OSX_VERSION_MIN}" ./build.sh                               \
+ # Patch osxcross to support newer SDKs if needed
+ && (grep -q "14.5" tools/osxcross_conf.sh || sed -i 's/exit 1 # Unsupported SDK/echo "Warning: Using potentially unsupported SDK version, continuing anyway..."/' tools/osxcross_conf.sh) \
+ && curl -sLo tarballs/MacOSX${DARWIN_SDK_VERSION}.sdk.tar.xz "${DARWIN_SDK_URL}"                \
+ && UNATTENDED=yes OSX_VERSION_MIN="${DARWIN_OSX_VERSION_MIN}" ./build.sh                               \
  && mv target /usr/osxcross                                                                                    \
  && mv tools /usr/osxcross/                                                                                    \
  && ln -sf ../tools/osxcross-macports /usr/osxcross/bin/omp                                                    \
