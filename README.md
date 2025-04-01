@@ -138,16 +138,29 @@ docker build \
 
 ## Using crossbuild
 
+<details>
+<summary>Linux Targets</summary>
 #### x86_64
 
 ```console
 docker run --rm -v $(pwd):/workdir startergo/crossbuild make helloworld
-cc     helloworld.c   -o helloworld
-file helloworld
-helloworld: ELF 64-bit LSB executable...
 ```
 
-Misc: using `cc` instead of `make`
+```console
+cc     helloworld.c   -o helloworld
+```
+
+To verify the binary:
+```console
+file helloworld
+```
+
+Output:
+```console
+helloworld: ELF 64-bit LSB executable, x86-64, version 1 (SYSV), dynamically linked, for GNU/Linux 2.6.32, not stripped
+```
+
+Using `cc` instead of `make`:
 
 ```console
 docker run --rm -v $(pwd):/workdir startergo/crossbuild cc test/helloworld.c
@@ -157,49 +170,86 @@ docker run --rm -v $(pwd):/workdir startergo/crossbuild cc test/helloworld.c
 
 ```console
 docker run --rm -v $(pwd):/workdir -e CROSS_TRIPLE=arm-linux-gnueabi startergo/crossbuild make helloworld
-cc     helloworld.c   -o helloworld
+```
+
+To verify the binary:
+```console
 file helloworld
-helloworld: ELF 32-bit LSB  executable, ARM, EABI5 version 1 (SYSV), dynamically linked (uses shared libs), for GNU/Linux 2.6.32, BuildID[sha1]=c8667acaa127072e05ddb9f67a5e48a337c80bc9, not stripped
+```
+
+Output:
+```console
+helloworld: ELF 32-bit LSB executable, ARM, EABI5 version 1 (SYSV), dynamically linked (uses shared libs), for GNU/Linux 2.6.32, BuildID[sha1]=c8667acaa127072e05ddb9f67a5e48a337c80bc9, not stripped
 ```
 
 #### armhf
 
 ```console
 docker run --rm -v $(pwd):/workdir -e CROSS_TRIPLE=arm-linux-gnueabihf startergo/crossbuild make helloworld
-cc     helloworld.c   -o helloworld
+```
+
+To verify the binary:
+```console
 file helloworld
-helloworld: ELF 32-bit LSB  executable, ARM, EABI5 version 1 (SYSV), dynamically linked (uses shared libs), for GNU/Linux 2.6.32, BuildID[sha1]=ad507da0b9aeb78e7b824692d4bae6b2e6084598, not stripped
+```
+
+Output:
+```console
+helloworld: ELF 32-bit LSB executable, ARM, EABI5 version 1 (SYSV), dynamically linked (uses shared libs), for GNU/Linux 2.6.32, BuildID[sha1]=ad507da0b9aeb78e7b824692d4bae6b2e6084598, not stripped
 ```
 
 #### powerpc 64-bit el
 
 ```console
 docker run --rm -v $(pwd):/workdir -e CROSS_TRIPLE=powerpc64le-linux-gnu startergo/crossbuild make helloworld
-cc     helloworld.c   -o helloworld
+```
+
+To verify the binary:
+```console
 file helloworld
-helloworld: ELF 64-bit LSB  executable, 64-bit PowerPC or cisco 7500, version 1 (SYSV), dynamically linked (uses shared libs), for GNU/Linux 2.6.32, BuildID[sha1]=035c50a8b410361d3069f77e2ec2454c70a140e8, not st
-ripped
+```
+
+Output:
+```console
+helloworld: ELF 64-bit LSB executable, 64-bit PowerPC or cisco 7500, version 1 (SYSV), dynamically linked (uses shared libs), for GNU/Linux 2.6.32, BuildID[sha1]=035c50a8b410361d3069f77e2ec2454c70a140e8, not stripped
 ```
 
 #### arm64
 
 ```console
 docker run --rm -v $(pwd):/workdir -e CROSS_TRIPLE=aarch64-linux-gnu startergo/crossbuild make helloworld
-cc     helloworld.c   -o helloworld
+```
+
+To verify the binary:
+```console
 file helloworld
-helloworld: ELF 64-bit LSB  executable, ARM aarch64, version 1 (SYSV), dynamically linked (uses shared libs), for GNU/Linux 3.7.0, BuildID[sha1]=dce6100f0bc19504bc19987535f3cc04bd550d60, not stripped
+```
+
+Output:
+```console
+helloworld: ELF 64-bit LSB executable, ARM aarch64, version 1 (SYSV), dynamically linked (uses shared libs), for GNU/Linux 3.7.0, BuildID[sha1]=dce6100f0bc19504bc19987535f3cc04bd550d60, not stripped
 ```
 
 #### mips el
 
 ```console
 docker run --rm -v $(pwd):/workdir -e CROSS_TRIPLE=mipsel-linux-gnu startergo/crossbuild make helloworld
-cc     helloworld.c   -o helloworld
-file helloworld
-helloworld: ELF 32-bit LSB  executable, MIPS, MIPS-II version 1 (SYSV), dynamically linked (uses shared libs), for GNU/Linux 2.6.32, BuildID[sha1]=d6b2f608a3c1a56b8b990be66eed0c41baaf97cd, not stripped
 ```
 
-### darwin i386
+To verify the binary:
+```console
+file helloworld
+```
+
+Output:
+```console
+helloworld: ELF 32-bit LSB executable, MIPS, MIPS-II version 1 (SYSV), dynamically linked (uses shared libs), for GNU/Linux 2.6.32, BuildID[sha1]=d6b2f608a3c1a56b8b990be66eed0c41baaf97cd, not stripped
+```
+</details>
+
+<details>
+<summary>Darwin Targets</summary>
+#### darwin i386
 
 > **Note**: This example requires a container built using an SDK version 10.14 (Darwin 18) or earlier.
 
@@ -221,7 +271,15 @@ docker run -it --rm -v $(pwd):/workdir -e CROSS_TRIPLE=i386-apple-darwin17 start
 
 ```console
 o32-clang     helloworld.c   -o helloworld
+```
+
+To verify the binary:
+
+```console
 file helloworld
+```
+Output:
+```console
 helloworld: Mach-O executable i386
 ```
 
@@ -233,7 +291,15 @@ docker run -it --rm -v $(pwd):/workdir -e CROSS_TRIPLE=x86_64-apple-darwin23 sta
 
 ```console
 o64-clang     helloworld.c   -o helloworld
+```
+
+To verify the binary:
+
+```console
 file helloworld
+```
+Output:
+```console
 helloworld: Mach-O 64-bit executable x86_64
 ```
 
@@ -245,12 +311,23 @@ docker run --rm -v $(pwd):/workdir -e CROSS_TRIPLE=darwin64 startergo/crossbuild
 docker run --rm -v $(pwd):/workdir -e CROSS_TRIPLE=x86_64-apple-darwin startergo/crossbuild make helloworld
 ```
 
-#### #### darwin arm64 (Apple Silicon)
+#### darwin arm64 (Apple Silicon)
 
 ```console
 docker run --rm -v $(pwd):/workdir -e CROSS_TRIPLE=aarch64-apple-darwin23 startergo/crossbuild make helloworld
+```
+
+```console
 cc     helloworld.c   -o helloworld
+```
+
+To verify the binary:
+```console
 file helloworld
+```
+
+Output:
+```console
 helloworld: Mach-O 64-bit executable arm64
 ```
 
@@ -263,13 +340,27 @@ docker run --rm -v $(pwd):/workdir -e CROSS_TRIPLE=arm64-apple-darwin23 starterg
 docker run --rm -v $(pwd):/workdir -e CROSS_TRIPLE=osx-arm64 startergo/crossbuild make helloworld
 docker run --rm -v $(pwd):/workdir -e CROSS_TRIPLE=darwin-arm64 startergo/crossbuild make helloworld
 ```
+</details>
 
+<details>
+<summary>Windows Targets</summary>
 #### windows i386
 
 ```console
 docker run -it --rm -v $(pwd):/workdir -e CROSS_TRIPLE=i686-w64-mingw32 startergo/crossbuild make helloworld
+```
+
+```console
 o32-clang     helloworld.c   -o helloworld
+```
+
+To verify the binary:
+
+```console
 file helloworld
+```
+Output:
+```console
 helloworld: PE32 executable (console) Intel 80386, for MS Windows
 ```
 
@@ -277,10 +368,22 @@ helloworld: PE32 executable (console) Intel 80386, for MS Windows
 
 ```console
 docker run -it --rm -v $(pwd):/workdir -e CROSS_TRIPLE=x86_64-w64-mingw32 startergo/crossbuild make helloworld
+```
+
+```console
 o64-clang     helloworld.c   -o helloworld
+```
+
+To verify the binary:
+
+```console
 file helloworld
+```
+Output:
+```Console
 helloworld: PE32+ executable (console) x86-64, for MS Windows
 ```
+</details>
 
 ### Note on Compiler Output
 
@@ -289,7 +392,9 @@ When cross-compiling for different targets, you'll notice different compiler com
 - `o32-clang`: The OSXCross 32-bit Clang compiler (for i386-apple-darwin)
 - `o64-clang`: The OSXCross 64-bit Clang compiler (for x86_64-apple-darwin)
 
-## Using crossbuild in a Dockerfile
+## Dockerfile Integration
+
+You can use crossbuild within your own Dockerfiles:
 
 ```Dockerfile
 FROM startergo/crossbuild
