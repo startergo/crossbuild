@@ -134,6 +134,7 @@ RUN mkdir -p "/tmp/osxcross" && \
 ENV LD_LIBRARY_PATH=/usr/osxcross/lib
 
 # Add verification for macOS cross-compilers with more flexible pattern matching
+# Also extract the exact Darwin version for later use
 RUN set -x && \
     echo "Verifying osxcross installation..." && \
     ls -la /usr/osxcross/bin/ | grep -E "clang|gcc" && \
@@ -143,6 +144,10 @@ RUN set -x && \
         echo "ERROR: Could not find macOS clang compiler binary" && \
         exit 1; \
     fi && \
+    # Extract the exact Darwin version from the binary name for later use
+    EXACT_DARWIN_VER=$(echo "$CLANG_BIN" | sed -E 's/.*darwin([0-9\.]+).*/\1/') && \
+    echo "Detected Darwin version: $EXACT_DARWIN_VER" && \
+    echo "$EXACT_DARWIN_VER" > /usr/osxcross/darwin_version && \
     echo "Using compiler: $CLANG_BIN" && \
     # Create a simple C program on a single line to avoid escape issues
     printf '#include <stdio.h>\nint main() { printf("Hello from macOS\\n"); return 0; }\n' > /tmp/test.c && \
@@ -153,42 +158,66 @@ RUN set -x && \
     echo "osxcross verification complete!"
 
 # Create symlinks for triples and set default CROSS_TRIPLE
-ENV LINUX_TRIPLES=arm-linux-gnueabi,arm-linux-gnueabihf,aarch64-linux-gnu,mipsel-linux-gnu,powerpc64le-linux-gnu                  \
-    DARWIN_TRIPLES=x86_64h-apple-darwin${DARWIN_VERSION},x86_64-apple-darwin${DARWIN_VERSION},i386-apple-darwin${DARWIN_VERSION}  \
-    WINDOWS_TRIPLES=i686-w64-mingw32,x86_64-w64-mingw32                                                                           \
+# Base DARWIN_TRIPLES on the major version number for maximum compatibility
+ENV LINUX_TRIPLES=arm-linux-gnueabi,arm-linux-gnueabihf,aarch64-linux-gnu,mipsel-linux-gnu,powerpc64le-linux-gnu \
+    DARWIN_TRIPLES=x86_64h-apple-darwin${DARWIN_VERSION},x86_64-apple-darwin${DARWIN_VERSION},i386-apple-darwin${DARWIN_VERSION} \
+    WINDOWS_TRIPLES=i686-w64-mingw32,x86_64-w64-mingw32 \
     CROSS_TRIPLE=x86_64-linux-gnu
+
 COPY ./assets/osxcross-wrapper /usr/bin/osxcross-wrapper
-RUN mkdir -p /usr/x86_64-linux-gnu;                                                               \
-    for triple in $(echo ${LINUX_TRIPLES} | tr "," " "); do                                       \
-      for bin in /usr/bin/$triple-*; do                                                           \
-        if [ ! -f /usr/$triple/bin/$(basename $bin | sed "s/$triple-//") ]; then                  \
-          ln -s $bin /usr/$triple/bin/$(basename $bin | sed "s/$triple-//");                      \
-        fi;                                                                                       \
-      done;                                                                                       \
-      for bin in /usr/bin/$triple-*; do                                                           \
-        if [ ! -f /usr/$triple/bin/cc ]; then                                                     \
-          ln -s gcc /usr/$triple/bin/cc;                                                          \
-        fi;                                                                                       \
-      done;                                                                                       \
-    done &&                                                                                       \
-    for triple in $(echo ${DARWIN_TRIPLES} | tr "," " "); do                                      \
-      mkdir -p /usr/$triple/bin;                                                                  \
-      for bin in /usr/osxcross/bin/$triple-*; do                                                  \
-        ln /usr/bin/osxcross-wrapper /usr/$triple/bin/$(basename $bin | sed "s/$triple-//");      \
-      done &&                                                                                     \
-      rm -f /usr/$triple/bin/clang*;                                                              \
-      ln -s cc /usr/$triple/bin/gcc;                                                              \
-      ln -s /usr/osxcross/SDK/MacOSX${DARWIN_SDK_VERSION}.sdk/usr /usr/x86_64-linux-gnu/$triple;  \
-    done;                                                                                         \
-    for triple in $(echo ${WINDOWS_TRIPLES} | tr "," " "); do                                     \
-      mkdir -p /usr/$triple/bin;                                                                  \
-      for bin in /etc/alternatives/$triple-* /usr/bin/$triple-*; do                               \
-        if [ ! -f /usr/$triple/bin/$(basename $bin | sed "s/$triple-//") ]; then                  \
-          ln -s $bin /usr/$triple/bin/$(basename $bin | sed "s/$triple-//");                      \
-        fi;                                                                                       \
-      done;                                                                                       \
-      ln -s gcc /usr/$triple/bin/cc;                                                              \
-      ln -s /usr/$triple /usr/x86_64-linux-gnu/$triple;                                           \
+RUN mkdir -p /usr/x86_64-linux-gnu && \
+    # Get the exact Darwin version we extracted earlier
+    EXACT_DARWIN_VER=$(cat /usr/osxcross/darwin_version) && \
+    echo "Using Darwin version: $EXACT_DARWIN_VER" && \
+    # Linux triples processing
+    for triple in $(echo ${LINUX_TRIPLES} | tr "," " "); do \
+      # Make sure the directory exists first
+      mkdir -p /usr/$triple/bin && \
+      # Create symlinks for all binaries
+      for bin in /usr/bin/$triple-*; do \
+        if [ -f "$bin" ]; then \
+          if [ ! -f /usr/$triple/bin/$(basename $bin | sed "s/$triple-//") ]; then \
+            ln -s $bin /usr/$triple/bin/$(basename $bin | sed "s/$triple-//"); \
+          fi; \
+        fi; \
+      done && \
+      # Create cc symlink to gcc if gcc exists
+      if [ -f /usr/$triple/bin/gcc ]; then \
+        if [ ! -f /usr/$triple/bin/cc ]; then \
+          ln -s gcc /usr/$triple/bin/cc; \
+        fi; \
+      fi; \
+    done && \
+    # Darwin triples processing with version handling
+    for triple_base in $(echo ${DARWIN_TRIPLES} | tr "," " " | sed "s/-apple-darwin${DARWIN_VERSION}//g"); do \
+      # Create the base triple without version and the exact triple with full version
+      base_triple="${triple_base}-apple-darwin${DARWIN_VERSION}" && \
+      exact_triple="${triple_base}-apple-darwin${EXACT_DARWIN_VER}" && \
+      echo "Setting up compiler for $base_triple using binaries with $exact_triple" && \
+      # Make directories for both generic and exact versions
+      mkdir -p /usr/$base_triple/bin && \
+      # Find all binaries that match this triple pattern
+      for bin in $(find /usr/osxcross/bin -name "${triple_base}-apple-darwin*-*"); do \
+        bin_suffix=$(echo $bin | sed -E "s/.*${triple_base}-apple-darwin[0-9\.]+-//") && \
+        # Create links from generic triple to the osxcross-wrapper
+        ln -sf /usr/bin/osxcross-wrapper /usr/$base_triple/bin/$bin_suffix; \
+      done && \
+      rm -f /usr/$base_triple/bin/clang* && \
+      ln -s cc /usr/$base_triple/bin/gcc && \
+      ln -s /usr/osxcross/SDK/MacOSX${DARWIN_SDK_VERSION}.sdk/usr /usr/x86_64-linux-gnu/$base_triple; \
+    done && \
+    # Windows triples processing
+    for triple in $(echo ${WINDOWS_TRIPLES} | tr "," " "); do \
+      mkdir -p /usr/$triple/bin && \
+      for bin in /etc/alternatives/$triple-* /usr/bin/$triple-*; do \
+        if [ -f "$bin" ]; then \
+          if [ ! -f /usr/$triple/bin/$(basename $bin | sed "s/$triple-//") ]; then \
+            ln -s $bin /usr/$triple/bin/$(basename $bin | sed "s/$triple-//"); \
+          fi; \
+        fi; \
+      done && \
+      ln -s gcc /usr/$triple/bin/cc && \
+      ln -s /usr/$triple /usr/x86_64-linux-gnu/$triple; \
     done
 
 # Image metadata

@@ -157,6 +157,18 @@ $ file helloworld
 helloworld: PE32+ executable (console) x86-64, for MS Windows
 ```
 
+# SDK Version Note
+
+This image now uses macOS SDK 14.5 by default, with corresponding Darwin version 23.5. When using the macOS cross-compiler, you should use:
+
+```console
+# For x86_64
+$ docker run --rm -v $(pwd):/workdir -e CROSS_TRIPLE=x86_64-apple-darwin23 startergo/crossbuild make helloworld
+
+# For i386 (if available in current SDK)
+$ docker run --rm -v $(pwd):/workdir -e CROSS_TRIPLE=i386-apple-darwin23 startergo/crossbuild make helloworld
+```
+
 ## Using crossbuild in a Dockerfile
 
 ```Dockerfile
@@ -187,3 +199,4 @@ OSX/Darwin/Apple builds:
 ## License
 
 MIT
+````
