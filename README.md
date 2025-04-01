@@ -20,10 +20,49 @@ mipsel-linux-gnu       | mips, mipsel                          |   X   |     |
 powerpc64le-linux-gnu  | powerpc, powerpc64, powerpc64le       |   X   |     |
 x86_64-apple-darwin    | osx, osx64, darwin, darwin64          |       |  X  |
 x86_64h-apple-darwin   | osx64h, darwin64h, x86_64h            |       |  X  |
-i386-apple-darwin      | osx32, darwin32                       |       |  X  |
+i386-apple-darwin¹     | osx32, darwin32                       |       |  X  |
 aarch64-apple-darwin   | arm64-apple-darwin, osx-arm64, darwin-arm64 |   |  X  |
 x86_64-w64-mingw32     | windows, win64                        |       |     |   X
 i686-w64-mingw32       | win32                                 |       |     |   X
+
+¹ *i386-apple-darwin requires building with SDK < 10.15 (Darwin 19). The default build uses SDK 14.5 (Darwin 23), which does not support 32-bit targets.*
+
+## macOS SDK Variants
+
+This image supports different macOS SDK versions through build arguments. The SDK version and Darwin version must match according to the macOS release:
+
+| macOS Version | SDK Version | Darwin Version | i386 Support |
+|---------------|-------------|----------------|--------------|
+| Sonoma        | 14.x        | 23             | No           |
+| Ventura       | 13.x        | 22             | No           |
+| Monterey      | 12.x        | 21             | No           |
+| Big Sur       | 11.x        | 20             | No           |
+| Catalina      | 10.15       | 19             | No           |
+| Mojave        | 10.14       | 18             | Yes          |
+| High Sierra   | 10.13       | 17             | Yes          |
+| Sierra        | 10.12       | 16             | Yes          |
+
+### Default build (SDK 14.5/Darwin 23)
+
+```bash
+docker build -t crossbuild .
+```
+
+## SDK Variants
+
+This image supports different macOS SDK versions through build arguments. The SDK version and Darwin version must match according to the macOS release. Available macOS SDK versions can be found at: https://github.com/joseluisq/macosx-sdks/blob/master/macosx_sdks.json:
+
+```bash
+# Default build (SDK 14.5)
+docker build -t crossbuild .
+
+# Build with macOS SDK 10.13 for i386 support
+docker build \
+  --build-arg darwin_sdk_version=10.13 \
+  --build-arg darwin_sdk_url=https://github.com/joseluisq/macosx-sdks/releases/download/10.13/MacOSX10.13.sdk.tar.xz \
+  --build-arg darwin_version=17 \
+  -t crossbuild:i386-support .
+```
 
 ## Building the Image
 
@@ -122,10 +161,20 @@ $ file helloworld
 helloworld: ELF 32-bit LSB  executable, MIPS, MIPS-II version 1 (SYSV), dynamically linked (uses shared libs), for GNU/Linux 2.6.32, BuildID[sha1]=d6b2f608a3c1a56b8b990be66eed0c41baaf97cd, not stripped
 ```
 
-#### darwin i386
+### darwin i386
+
+> **Note**: This example requires a container built using an SDK version 10.14 (Darwin 18) or earlier.
 
 ```console
-$ docker run -it --rm -v $(pwd):/workdir -e CROSS_TRIPLE=i386-apple-darwin  multiarch/crossbuild make helloworld
+# Build the container with i386 support
+$ docker build \
+  --build-arg darwin_sdk_version=10.13 \
+  --build-arg darwin_sdk_url=https://github.com/joseluisq/macosx-sdks/releases/download/10.13/MacOSX10.13.sdk.tar.xz \
+  --build-arg darwin_version=17 \
+  -t crossbuild:i386-support .
+
+# Then use it for i386 compilation
+$ docker run -it --rm -v $(pwd):/workdir -e CROSS_TRIPLE=i386-apple-darwin17 crossbuild:i386-support make helloworld
 o32-clang     helloworld.c   -o helloworld
 $ file helloworld
 helloworld: Mach-O executable i386
@@ -134,7 +183,7 @@ helloworld: Mach-O executable i386
 #### darwin x86_64
 
 ```console
-$ docker run -it --rm -v $(pwd):/workdir -e CROSS_TRIPLE=x86_64-apple-darwin  multiarch/crossbuild make helloworld
+$ docker run -it --rm -v $(pwd):/workdir -e CROSS_TRIPLE=x86_64-apple-darwin23 startergo/crossbuild make helloworld
 o64-clang     helloworld.c   -o helloworld
 $ file helloworld
 helloworld: Mach-O 64-bit executable x86_64
@@ -154,6 +203,9 @@ helloworld: Mach-O 64-bit executable arm64
 $ docker run --rm -v $(pwd):/workdir -e CROSS_TRIPLE=arm64-apple-darwin23 startergo/crossbuild make helloworld
 $ docker run --rm -v $(pwd):/workdir -e CROSS_TRIPLE=osx-arm64 startergo/crossbuild make helloworld
 $ docker run --rm -v $(pwd):/workdir -e CROSS_TRIPLE=darwin-arm64 startergo/crossbuild make helloworld
+$ docker run --rm -v $(pwd):/workdir -e CROSS_TRIPLE=osx64 startergo/crossbuild make helloworld
+$ docker run --rm -v $(pwd):/workdir -e CROSS_TRIPLE=darwin64 startergo/crossbuild make helloworld
+$ docker run --rm -v $(pwd):/workdir -e CROSS_TRIPLE=x86_64-apple-darwin startergo/crossbuild make helloworld
 ```
 
 #### windows i386
