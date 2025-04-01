@@ -17,7 +17,8 @@ shift $((OPTIND-1))
 
 # Set variables - update the Darwin triples to match your actual SDK version (23)
 LINUX_TRIPLES="arm-linux-gnueabihf arm-linux-gnueabi powerpc64le-linux-gnu aarch64-linux-gnu arm-linux-gnueabihf mipsel-linux-gnu"
-DARWIN_TRIPLES="x86_64-apple-darwin23 i386-apple-darwin23 x86_64h-apple-darwin23"
+# Set variables - update the Darwin triples to match your actual SDK version including ARM64
+DARWIN_TRIPLES="x86_64-apple-darwin23 i386-apple-darwin23 x86_64h-apple-darwin23 aarch64-apple-darwin23"
 WINDOWS_TRIPLES="x86_64-w64-mingw32 i686-w64-mingw32"
 ALIAS_TRIPLES="arm armhf arm64 amd64 x86_64 mips mipsel powerpc powerpc64 powerpc64le osx darwin windows"
 DOCKER_TEST_ARGS="--rm -v $(pwd)/test:/test -w /test"

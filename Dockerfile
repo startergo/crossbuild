@@ -158,9 +158,8 @@ RUN set -x && \
     echo "osxcross verification complete!"
 
 # Create symlinks for triples and set default CROSS_TRIPLE
-# Base DARWIN_TRIPLES on the major version number for maximum compatibility
 ENV LINUX_TRIPLES=arm-linux-gnueabi,arm-linux-gnueabihf,aarch64-linux-gnu,mipsel-linux-gnu,powerpc64le-linux-gnu \
-    DARWIN_TRIPLES=x86_64h-apple-darwin${DARWIN_VERSION},x86_64-apple-darwin${DARWIN_VERSION},i386-apple-darwin${DARWIN_VERSION} \
+    DARWIN_TRIPLES=x86_64h-apple-darwin${DARWIN_VERSION},x86_64-apple-darwin${DARWIN_VERSION},aarch64-apple-darwin${DARWIN_VERSION},i386-apple-darwin${DARWIN_VERSION} \
     WINDOWS_TRIPLES=i686-w64-mingw32,x86_64-w64-mingw32 \
     CROSS_TRIPLE=x86_64-linux-gnu
 
