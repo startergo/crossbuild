@@ -4,15 +4,19 @@ set -e
 # Get Darwin version if not set
 if [ -z "${DARWIN_VERSION}" ]; then
     if [ -f /usr/osxcross/darwin_version ]; then
-        DARWIN_VERSION=$(cat /usr/osxcross/darwin_version | cut -d. -f1)
+        DARWIN_VERSION=$(cat /usr/osxcross/darwin_version)
     else
-        DARWIN_VERSION=23  # Default to Darwin 23
+        DARWIN_VERSION=23.5  # Default to Darwin 23.5
     fi
 fi
 
 # Debug info
 echo "------------------------------------------------------------------------"
 echo "CROSS_TRIPLE: ${CROSS_TRIPLE}"
+echo "DARWIN_VERSION: ${DARWIN_VERSION}"
+
+# Get major version for simpler matching
+DARWIN_MAJOR=$(echo "${DARWIN_VERSION}" | cut -d. -f1)
 
 # alternative names mapping
 case "${CROSS_TRIPLE}" in
@@ -29,44 +33,41 @@ case "${CROSS_TRIPLE}" in
     powerpc64le-linux-gnu|powerpc|powerpc64|powerpc64le)
         CROSS_TRIPLE="powerpc64le-linux-gnu" ;;
     x86_64-apple-darwin*|osx|osx64|darwin|darwin64)
-        # If it already has a version number, keep it
-        if [[ "${CROSS_TRIPLE}" =~ x86_64-apple-darwin[0-9]+ ]]; then
-            true  # Keep existing triple
-        else
+        # If it doesn't have a version number or has a different version, update it
+        if [[ ! "${CROSS_TRIPLE}" =~ x86_64-apple-darwin[0-9]+ ]] || \
+           [[ "${CROSS_TRIPLE}" =~ x86_64-apple-darwin[0-9]+ && "${CROSS_TRIPLE}" != "x86_64-apple-darwin${DARWIN_VERSION}" ]]; then
             CROSS_TRIPLE="x86_64-apple-darwin${DARWIN_VERSION}"
         fi ;;
     x86_64h-apple-darwin*|osx64h|darwin64h|x86_64h)
-        # If it already has a version number, keep it
-        if [[ "${CROSS_TRIPLE}" =~ x86_64h-apple-darwin[0-9]+ ]]; then
-            true  # Keep existing triple
-        else
+        # If it doesn't have a version number or has a different version, update it
+        if [[ ! "${CROSS_TRIPLE}" =~ x86_64h-apple-darwin[0-9]+ ]] || \
+           [[ "${CROSS_TRIPLE}" =~ x86_64h-apple-darwin[0-9]+ && "${CROSS_TRIPLE}" != "x86_64h-apple-darwin${DARWIN_VERSION}" ]]; then
             CROSS_TRIPLE="x86_64h-apple-darwin${DARWIN_VERSION}"
         fi ;;
     i386-apple-darwin*|osx32|darwin32)
         # Check if i386 is supported in this SDK
-        if [ "${DARWIN_VERSION}" -ge 19 ]; then
+        if [ "${DARWIN_MAJOR}" -ge 19 ]; then
             echo "i386-apple-darwin${DARWIN_VERSION} not supported - i386 was dropped in Darwin 19+" 
             exit 1
         fi
-        # If it already has a version number, keep it
-        if [[ "${CROSS_TRIPLE}" =~ i386-apple-darwin[0-9]+ ]]; then
-            true  # Keep existing triple
-        else
+        # If it doesn't have a version number or has a different version, update it
+        if [[ ! "${CROSS_TRIPLE}" =~ i386-apple-darwin[0-9]+ ]] || \
+           [[ "${CROSS_TRIPLE}" =~ i386-apple-darwin[0-9]+ && "${CROSS_TRIPLE}" != "i386-apple-darwin${DARWIN_VERSION}" ]]; then
             CROSS_TRIPLE="i386-apple-darwin${DARWIN_VERSION}"
         fi ;;
     aarch64-apple-darwin*|arm64-apple-darwin*|osx-arm64|darwin-arm64)
-        # If it already has a version number, keep it
-        if [[ "${CROSS_TRIPLE}" =~ (aarch64|arm64)-apple-darwin[0-9]+ ]]; then
-            true  # Keep existing triple
-        else
+        # If it doesn't have a version number or has a different version, update it
+        if [[ ! "${CROSS_TRIPLE}" =~ (aarch64|arm64)-apple-darwin[0-9]+ ]] || \
+           [[ "${CROSS_TRIPLE}" =~ (aarch64|arm64)-apple-darwin[0-9]+ && 
+              ! "${CROSS_TRIPLE}" =~ (aarch64|arm64)-apple-darwin${DARWIN_VERSION} ]]; then
             CROSS_TRIPLE="aarch64-apple-darwin${DARWIN_VERSION}"
         fi ;;
     *-apple-darwin*)
-        # Possibly has a version already
-        if [[ "$CROSS_TRIPLE" =~ -apple-darwin[0-9]+ ]]; then
-            true  # Keep existing triple
-        else
-            CROSS_TRIPLE="${CROSS_TRIPLE}${DARWIN_VERSION}" 
+        # Check if it has the correct version
+        if [[ ! "${CROSS_TRIPLE}" =~ -apple-darwin${DARWIN_VERSION} ]]; then
+            # Extract the part before -apple-darwin
+            PREFIX=$(echo "${CROSS_TRIPLE}" | sed -E 's/(.+)-apple-darwin.*/\1/')
+            CROSS_TRIPLE="${PREFIX}-apple-darwin${DARWIN_VERSION}"
         fi ;;
     x86_64-w64-mingw32|windows|win64)
         CROSS_TRIPLE="x86_64-w64-mingw32" ;;
@@ -78,6 +79,8 @@ case "${CROSS_TRIPLE}" in
         # Don't exit with error, just warn
         echo "Warning: ${CROSS_TRIPLE} not explicitly recognized, but will try to use it" ;;
 esac
+
+echo "Final CROSS_TRIPLE: ${CROSS_TRIPLE}"
 
 # Set PATH to include the target directory
 if [ -n "${CROSS_TRIPLE}" ]; then

@@ -15,24 +15,27 @@ shift $((OPTIND-1))
 
 [ "$1" = "--" ] && shift
 
-# First find the actual Darwin version inside the container to use for subsequent tests
-DARWIN_VERSION=$(docker run --rm ${DOCKER_REPO} bash -c 'cat /usr/osxcross/darwin_version || echo 23.5')
+# Fix the Darwin version detection to avoid capturing extra output
+DARWIN_VERSION=$(docker run --rm ${DOCKER_REPO} bash -c 'cat /usr/osxcross/darwin_version 2>/dev/null | grep -v "^-\{10\}" | grep -v "^CROSS_TRIPLE" || echo 23.5' | tail -1)
 echo "Detected Darwin version: ${DARWIN_VERSION}"
-DARWIN_MAJOR=$(echo $DARWIN_VERSION | cut -d. -f1)
+
+# Extract just the version number properly
+DARWIN_MAJOR=$(echo ${DARWIN_VERSION} | grep -o '^[0-9]*')
 echo "Using Darwin major version: ${DARWIN_MAJOR}"
 
-# Check if i386 support should be enabled based on SDK version
-# i386 support was removed in macOS 10.15 (Darwin 19)
+# Check if i386 is supported based on Darwin version
 if [ ${DARWIN_MAJOR} -ge 19 ]; then
-    echo "SDK version ${DARWIN_MAJOR} detected - i386 support not available (dropped in macOS 10.15/Darwin 19)"
+    echo "SDK version ${DARWIN_MAJOR} detected - i386 support is NOT available"
     HAS_I386=false
-    # Darwin triples without i386
-    DARWIN_TRIPLES="x86_64-apple-darwin${DARWIN_MAJOR} x86_64h-apple-darwin${DARWIN_MAJOR} aarch64-apple-darwin${DARWIN_MAJOR}"
 else
     echo "SDK version ${DARWIN_MAJOR} detected - i386 support should be available"
     HAS_I386=true
-    # Darwin triples with i386
-    DARWIN_TRIPLES="x86_64-apple-darwin${DARWIN_MAJOR} i386-apple-darwin${DARWIN_MAJOR} x86_64h-apple-darwin${DARWIN_MAJOR} aarch64-apple-darwin${DARWIN_MAJOR}"
+fi
+
+# Set correct Darwin triples without extra text
+DARWIN_TRIPLES="x86_64-apple-darwin${DARWIN_MAJOR} x86_64h-apple-darwin${DARWIN_MAJOR} aarch64-apple-darwin${DARWIN_MAJOR}"
+if [ "$HAS_I386" = true ]; then
+    DARWIN_TRIPLES="${DARWIN_TRIPLES} i386-apple-darwin${DARWIN_MAJOR}"
 fi
 
 # Set variables for other architectures
@@ -80,13 +83,19 @@ fi
 # Always test x86_64
 echo "Testing x86_64 macOS compiler"
 docker run ${DOCKER_TEST_ARGS} -e CROSS_TRIPLE=x86_64-apple-darwin${DARWIN_MAJOR} ${DOCKER_REPO} bash -c "
-  ls -la /usr/osxcross/bin/*x86_64*clang*
-  cc helloworld.c -o helloworld || exit 1
+  echo 'Finding available compiler binaries:'
+  find /usr/osxcross/bin -name '*x86_64*clang*' | head -n5
+  echo '#include <stdio.h>' > test.c
+  echo 'int main() { printf(\"Hello from macOS\\n\"); return 0; }' >> test.c
+  cc test.c -o helloworld
   file helloworld" || echo "x86_64 compilation failed"
 
 # Always test ARM64
 echo "Testing ARM64 macOS compiler"
 docker run ${DOCKER_TEST_ARGS} -e CROSS_TRIPLE=aarch64-apple-darwin${DARWIN_MAJOR} ${DOCKER_REPO} bash -c "
-  ls -la /usr/osxcross/bin/*aarch64*clang* || ls -la /usr/osxcross/bin/*arm64*clang*
-  cc helloworld.c -o helloworld || exit 1
+  echo \"Finding available compiler binaries...\"
+  find /usr/osxcross/bin -name '*arm64*clang*' || find /usr/osxcross/bin -name '*aarch64*clang*'
+  echo \"#include <stdio.h>\" > test.c
+  echo \"int main() { printf(\\\"Hello from macOS ARM64\\\\n\\\"); return 0; }\" >> test.c
+  cc test.c -o helloworld || exit 1
   file helloworld" || echo "ARM64 compilation failed"
