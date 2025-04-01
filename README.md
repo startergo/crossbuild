@@ -24,6 +24,40 @@ i386-apple-darwin      | osx32, darwin32                     |       |  X  |
 x86_64-w64-mingw32     | windows, win64                      |       |     |   X
 i686-w64-mingw32       | win32                               |       |     |   X
 
+## Building the Image
+
+The Docker image can be built with different macOS SDK versions and other parameters by using build arguments:
+
+```console
+# Build with macOS SDK 14.5 (default)
+$ docker build -t startergo/crossbuild .
+
+# Build with macOS SDK 13.4
+$ docker build \
+    --build-arg darwin_sdk_version=13.4 \
+    --build-arg darwin_sdk_url=https://github.com/joseluisq/macosx-sdks/releases/download/13.4/MacOSX13.4.sdk.tar.xz \
+    --build-arg darwin_version=22 \
+    -t startergo/crossbuild:sdk-13.4 .
+
+# Build with different minimum macOS version
+$ docker build \
+    --build-arg darwin_osx_version_min=11.0 \
+    -t startergo/crossbuild:min-11.0 .
+
+# Build with a specific osxcross revision
+$ docker build \
+    --build-arg osxcross_revision=542acc2ef6c21aeb3f109c03748b1015a71fed63 \
+    -t startergo/crossbuild:osxcross-stable .
+
+# Build with a combination of parameters
+$ docker build \
+    --build-arg darwin_sdk_version=12.0 \
+    --build-arg darwin_osx_version_min=10.9 \
+    --build-arg darwin_version=21 \
+    --build-arg darwin_sdk_url=https://github.com/joseluisq/macosx-sdks/releases/download/12.0/MacOSX12.0.sdk.tar.xz \
+    -t startergo/crossbuild:monterey-min10.9 .
+```
+
 ## Using crossbuild
 
 #### x86_64
