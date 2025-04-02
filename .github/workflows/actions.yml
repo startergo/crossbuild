@@ -1,4 +1,4 @@
-name: actions
+name: Build and Push Multi-Arch Images
 on:
   push:
     branches:
@@ -10,16 +10,56 @@ jobs:
   crossbuild:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
       - name: Set variables
         run: |
           echo "DOCKER_REPO=docker.io/startergo/crossbuild" >> $GITHUB_ENV
-      - name: Build
-        run: docker build -t ${{ env.DOCKER_REPO }} .
-      - name: Test
-        run: ./test.sh -d "${{ env.DOCKER_REPO }}"
-      - name: Publish
+          echo "DATE=$(date +%Y%m%d)" >> $GITHUB_ENV
+      
+      # Set up QEMU for multi-architecture builds
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+        with:
+          platforms: linux/amd64,linux/arm64
+      
+      # Set up Docker Buildx for multi-architecture builds
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      
+      # For pull requests: Build and test only for AMD64 (faster)
+      - name: Build and Test (PR)
+        if: github.event_name == 'pull_request'
+        run: |
+          docker build -t ${{ env.DOCKER_REPO }}:test .
+          ./test.sh -d "${{ env.DOCKER_REPO }}:test"
+      
+      # For master branch: Login to Docker Hub
+      - name: Login to Docker Hub
+        if: github.ref == 'refs/heads/master'
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+      
+      # For master branch: Build and push multi-arch images
+      - name: Build and Push Multi-Arch Images
+        if: github.ref == 'refs/heads/master'
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: |
+            ${{ env.DOCKER_REPO }}:latest
+            ${{ env.DOCKER_REPO }}:${{ env.DATE }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      
+      # Test the AMD64 image we just built and pushed
+      - name: Test Published Image
         if: github.ref == 'refs/heads/master'
         run: |
-          docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_TOKEN }}
-          docker push ${{ env.DOCKER_REPO }}
+          docker pull --platform linux/amd64 ${{ env.DOCKER_REPO }}:latest
+          ./test.sh -d "${{ env.DOCKER_REPO }}:latest"
